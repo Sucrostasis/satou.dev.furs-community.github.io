@@ -115,6 +115,38 @@ function cleanDescriptionText(text) {
     return cleaned.trim();
 }
 
+// HTML 净化函数 - 防止 XSS 攻击
+function sanitizeHTML(html) {
+    if (!html) return '';
+    
+    // 创建临时 DOM 元素
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    
+    // 只允许安全的标签
+    const allowedTags = ['strong', 'b', 'br', 'p', 'em', 'i', 'u'];
+    const elements = temp.querySelectorAll('*');
+    
+    // 遍历所有元素，移除不允许的标签
+    elements.forEach(el => {
+        if (!allowedTags.includes(el.tagName.toLowerCase())) {
+            // 保留子节点内容，移除外层标签
+            const fragment = document.createDocumentFragment();
+            while (el.firstChild) {
+                fragment.appendChild(el.firstChild);
+            }
+            el.parentNode.replaceChild(fragment, el);
+        } else {
+            // 移除所有属性（防止 onerror、onclick 等事件注入）
+            while (el.attributes.length > 0) {
+                el.removeAttribute(el.attributes[0].name);
+            }
+        }
+    });
+    
+    return temp.innerHTML;
+}
+
 // 卡片管理模块
 const cardManager = {
     /** 填充单个活动卡片 */
@@ -131,9 +163,10 @@ const cardManager = {
             startDate.textContent = (meetData.startDate || '').substring(0, 10);
         }
 
-        // 特殊处理详情文本（保留换行）
+        // 特殊处理详情文本（保留换行）- 使用 HTML 净化防止 XSS
         if (detail) {
-            detail.innerHTML = cleanDescriptionText(meetData.detail || defaults.detail);
+            const cleanedText = cleanDescriptionText(meetData.detail || defaults.detail);
+            detail.innerHTML = sanitizeHTML(cleanedText);
         }
 
         // 封面图片设置（主图和背景同步）
